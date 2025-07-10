@@ -1,33 +1,63 @@
 version: '3.8'
+
 services:
-  queue-api:
-    build: ../queue-api
-    ports:
-      - "3000:3000"
-    environment:
-      - RABBITMQ_URL=amqp://rabbitmq
-    depends_on:
-      - rabbitmq
-
-  queue-worker:
-    build: ../queue-worker
-    environment:
-      - RABBITMQ_URL=amqp://rabbitmq
-    depends_on:
-      - rabbitmq
-
+  # RabbitMQ
   rabbitmq:
     image: rabbitmq:3-management
+    container_name: queue-rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - queue-network
 
+  # Backend API (NestJS)
+  queue-api:
+    build: ../queue-api
+    container_name: queue-api
+    ports:
+      - "3000:3000"
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - NODE_ENV=production
+    depends_on:
+      - rabbitmq
+    networks:
+      - queue-network
+    restart: unless-stopped
+
+  # Worker (Go)
+  queue-worker:
+    build: ../queue-worker
+    container_name: queue-worker
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - rabbitmq
+    networks:
+      - queue-network
+    restart: unless-stopped
+
+  # Frontend (React)
   queue-web:
     build: ../queue-web
+    container_name: queue-web
     ports:
       - "8080:80"
     depends_on:
       - queue-api
+    networks:
+      - queue-network
+    restart: unless-stopped
+
+volumes:
+  rabbitmq_data:
+
+networks:
+  queue-network:
+    driver: bridge

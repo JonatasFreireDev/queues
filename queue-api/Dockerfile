@@ -1,8 +1,10 @@
-# Dockerfile para queue-api (NestJS)
+# Dockerfile para queue-api (NestJS) - Versão simplificada
 FROM node:18-alpine
-WORKDIR /app
+
+WORKDIR /usr/src/app
 COPY package*.json ./
-RUN npm install --production
+RUN npm install
 COPY . .
+RUN npm run build
 EXPOSE 3000
-CMD ["npm", "run", "start:prod"] 
+CMD ["node", "dist/main"] 
